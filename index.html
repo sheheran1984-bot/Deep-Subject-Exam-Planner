@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deep Subject & Exam Planner</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 20px 10px; background-color: #eef2f3;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .top-actions-bar { display: flex; gap: 10px; width: 100%; max-width: 500px; margin-bottom: 15px; }
+    .role-bar {
+      background: #7f8c8d; color: white; padding: 10px 16px; border-radius: 20px;
+      font-weight: bold; font-size: 14px; cursor: pointer; text-align: center; flex-grow: 1;
+    }
+    .role-bar.admin-active { background: #34495e; }
+    .global-refresh-btn { background: #27ae60; color: white; padding: 10px 16px; border-radius: 20px; font-weight: bold; border: none; cursor: pointer; }
+    .card { background: #ffffff; padding: 20px; border-radius: 12px; width: 100%; max-width: 500px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); box-sizing: border-box; }
+    h1, h2, h3, h4, h5 { color: #2c3e50; margin-top: 0; margin-bottom: 20px; border-bottom: 2px solid #eaeaea; padding-bottom: 10px; word-wrap: break-word; }
+    .back-btn { padding: 8px 14px; background-color: #7f8c8d; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; margin-bottom: 20px; font-weight: bold; }
+    .menu-item-row { display: flex; align-items: center; margin-bottom: 12px; gap: 6px; }
+    .main-btn { flex-grow: 1; padding: 12px 10px; background-color: #27ae60; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; text-align: left; word-break: break-word; }
+    .layer2-btn { background-color: #34495e; }
+    .layer3-btn { background-color: #2980b9; }
+    .exam-btn-main { background-color: #9b59b6; text-align: center; font-weight: bold; }
+    .action-btn-custom { background-color: #d35400; }
+    .action-btn { padding: 12px 8px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; color: white; min-width: 65px; text-align: center; }
+    .rename-btn { background-color: #f39c12; }
+    .delete-btn { background-color: #e74c3c; }
+    .control-panel { margin-top: 25px; border-top: 2px solid #eaeaea; padding-top: 20px; }
+    .action-trigger-btn { width: 100%; padding: 12px; background-color: #3498db; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; margin-bottom: 8px; cursor: pointer; }
+    .input-group { display: none; margin-top: 15px; flex-direction: column; gap: 8px; }
+    .input-group input, .quiz-box input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+    .input-group button, .quiz-box button { padding: 10px 15px; background-color: #2ecc71; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    .quiz-box { background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 5px solid #9b59b6; }
+    .quiz-question { font-weight: bold; font-size: 16px; color: #2c3e50; margin-bottom: 10px; }
+    .quiz-img { max-width: 100%; max-height: 250px; object-fit: contain; border-radius: 6px; margin-bottom: 10px; display: block; }
+    .option-btn { display: block; width: 100%; padding: 10px; margin-bottom: 6px; background-color: #ffffff; border: 1px solid #bdc3c7; border-radius: 6px; text-align: left; cursor: pointer; }
+    .correct-flash { background-color: #1b5e20 !important; color: white; }
+    .wrong-flash { background-color: #e74c3c !important; color: white; }
+    .radio-group { display: flex; align-items: center; gap: 10px; background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #ccc; }
+    video, iframe { width: 100%; border-radius: 6px; margin-top: 10px; background-color: #000; min-height: 280px; border: none; }
+    .hidden-file { display: none; }
+    
+    .edit-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:1000; }
+    .edit-modal-content { background:#fff; padding:20px; border-radius:12px; width:90%; max-width:450px; box-sizing:border-box; display:flex; flex-direction:column; gap:8px; max-height:90vh; overflow-y:auto; }
+
+    .end-exam-holder { margin-top: 20px; padding: 15px; background: #fff; border-radius: 8px; text-align: center; border: 2px dashed #9b59b6; }
+    .end-exam-trigger-btn { background: #e67e22; color: white; font-size: 16px; font-weight: bold; border: none; padding: 12px; width: 100%; border-radius: 6px; cursor: pointer; }
+    .score-banner-display { font-size: 22px; font-weight: bold; color: #27ae60; margin-top: 10px; display: none; animation: pulse 1s infinite alternate; }
+
+    body.student-mode .control-panel, body.student-mode .rename-btn, body.student-mode .delete-btn, body.student-mode .global-refresh-btn, body.student-mode .admin-actions { display: none !important; }
+
+    video::-webkit-media-controls-picture-in-picture-button {
+      display: none !important;
+    }
+  </style>
+</head>
+<body class="student-mode">
+
+<div class="top-actions-bar">
+  <div id="roleSelector" class="role-bar" onclick="toggleRole()">Current Role: 🎓 Student</div>
+  <button class="global-refresh-btn" onclick="triggerGlobalMasterRefresh()">🔄 Sync System Refresh</button>
+</div>
+
+<div class="card">
+  <div id="layer1Page">
+    <h1 id="programLabel" contenteditable="false" onblur="saveData()">Learning Program</h1>
+    <div id="layer1Container"></div>
+    <div class="control-panel"><button class="action-trigger-btn" onclick="showInputForm('layer1')">+ Add New Subject</button>
+      <div id="layer1InputGroup" class="input-group"><input type="text" id="newLayer1Name" placeholder="Subject Name..."><button onclick="submitNewLayer1()">Confirm</button></div>
+    </div>
+  </div>
+
+  <div id="layer2Page" style="display: none;">
+    <button class="back-btn" onclick="goToLayer1()">← Back to Subjects</button>
+    <h2 id="layer2Title">Subject Name</h2>
+    <div id="layer2Container"></div>
+    <div class="control-panel"><button class="action-trigger-btn" onclick="showInputForm('layer2')">+ Add New Topic</button>
+      <div id="layer2InputGroup" class="input-group"><input type="text" id="newLayer2Name" placeholder="Topic Name..."><button onclick="submitNewLayer2()">Confirm</button></div>
+    </div>
+  </div>
+
+  <div id="layer3Page" style="display: none;">
+    <button class="back-btn" onclick="goToLayer2()">← Back to Topics</button>
+    <h3 id="layer3Title">Topic Name</h3>
+    <div id="layer3Container"></div>
+    <div class="control-panel"><button class="action-trigger-btn" onclick="showInputForm('layer3')">+ Add New Lesson</button>
+      <div id="layer3InputGroup" class="input-group"><input type="text" id="newLayer3Name" placeholder="Lesson Name..."><button onclick="submitNewLayer3()">Confirm</button></div>
+    </div>
+  </div>
+
+  <div id="layer4Page" style="display: none;">
+    <button class="back-btn" onclick="goToLayer3()">← Back to Lessons</button>
+    <h4 id="layer4Title">Lesson Studio</h4>
+    <div id="videoPlayerArea" style="display:none; margin-bottom: 20px;">
+      <div id="dynamicVideoContainer"></div>
+    </div>
+    <div id="layer4Container"></div>
+    <div style="margin-top: 15px;"><button class="main-btn exam-btn-main" onclick="openExamPage()">📝 Open Exam Studio</button></div>
+    <div class="control-panel">
+      <button class="action-trigger-btn" style="background-color:#27ae60;" onclick="showInputForm('videoLinkGroup')">🔗 Connect External Video Link</button>
+      <div id="videoLinkGroupInputGroup" class="input-group">
+        <input type="text" id="externalVideoLinkInput" placeholder="Paste YouTube / Internet Archive Link...">
+        <button onclick="submitExternalVideoLink()">Connect Link</button>
+      </div>
+      <button class="action-trigger-btn" style="background-color:#2980b9; margin-top:8px;" onclick="triggerVideoUpload()">🎥 Upload Video File</button>
+      <button class="action-trigger-btn" style="background-color:#e67e22;" onclick="showInputForm('layer4')">+ Add Custom Task</button>
+      <input type="file" id="videoFileInput" class="hidden-file" accept="video/*" onchange="handleVideoSelected(this)">
+      <div id="layer4InputGroup" class="input-group"><input type="text" id="newLayer4Name" placeholder="Task Name..."><button onclick="submitNewLayer4()">Confirm</button></div>
+    </div>
+  </div>
+
+  <div id="examPage" style="display: none;">
+    <button class="back-btn" onclick="goToLayer4()">← Back to Lesson</button>
+    <h5 id="examTitle">Exam Setup Workspace</h5>
+    <div id="quizDisplayArea"></div>
+    
+    <div class="end-exam-holder" id="endExamWorkspaceBlock" style="display:none;">
+      <button class="end-exam-trigger-btn" onclick="calculateFinalExamScore()">🏁 End Exam & Show Score</button>
+      <div class="score-banner-display" id="finalScoreBannerArea"></div>
+    </div>
+
+    <div class="control-panel">
+      <button class="action-trigger-btn" style="background-color:#27ae60; margin-bottom:12px;" onclick="triggerBulkTxtUpload()">📁 Bulk Upload Questions (.txt)</button>
+      <input type="file" id="bulkTxtFileInput" class="hidden-file" accept=".txt" onchange="handleBulkTxtSelected(this)">
+      <button class="action-trigger-btn" style="background-color:#9b59b6;" onclick="showInputForm('examForm')">❓ Add Single Question</button>
+      <div id="examFormInputGroup" class="input-group">
+        <input type="text" id="quizQuestionInput" placeholder="Enter Question text...">
+        <label style="font-size:12px; font-weight:bold; color:#555;">Attach Question Image (Optional):</label>
+        <input type="file" id="quizQuestionImageInput" accept="image/*">
+        <div class="radio-group"><input type="radio" name="correctAnswerRadio" value="0" checked><input type="text" id="opt1" placeholder="Option 1"></div>
+        <div class="radio-group"><input type="radio" name="correctAnswerRadio" value="1"><input type="text" id="opt2" placeholder="Option 2"></div>
+        <div class="radio-group"><input type="radio" name="correctAnswerRadio" value="2"><input type="text" id="opt3" placeholder="Option 3"></div>
+        <div class="radio-group"><input type="radio" name="correctAnswerRadio" value="3"><input type="text" id="opt4" placeholder="Option 4"></div>
+        <button onclick="submitNewQuestion()" style="background-color: #8e44ad;">Save to Exam</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="editQuestionModal" class="edit-modal">
+  <div class="edit-modal-content">
+    <h3 style="margin-bottom:10px; font-size:18px;">✏️ Advanced Question Studio</h3>
+    <input type="text" id="editModalQText" placeholder="Question Text">
+    
+    <label style="font-size:12px; font-weight:bold; color:#555; margin-top:5px;">Change / Update Image:</label>
+    <input type="file" id="editModalQImage" accept="image/*">
+    <button id="editModalRemoveImgBtn" style="background:#e74c3c; padding:5px; font-size:11px;" onclick="removeModalImage()">❌ Remove Current Image</button>
+    
+    <div class="radio-group"><input type="radio" name="modalCorrectRadio" value="0" id="mRad0"><input type="text" id="mOpt0"></div>
+    <div class="radio-group"><input type="radio" name="modalCorrectRadio" value="1" id="mRad1"><input type="text" id="mOpt1"></div>
+    <div class="radio-group"><input type="radio" name="modalCorrectRadio" value="2" id="mRad2"><input type="text" id="mOpt2"></div>
+    <div class="radio-group"><input type="radio" name="modalCorrectRadio" value="3" id="mRad3"><input type="text" id="mOpt3"></div>
+    
+    <div style="display:flex; gap:10px; margin-top:10px;">
+      <button onclick="saveAdvancedEdit()" style="background:#27ae60; flex:1;">Save Changes</button>
+      <button onclick="closeEditModal()" style="background:#7f8c8d; flex:1;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let appData = { title: "Learning Program", subjects: [], data_version: 0 };
+  let currentSubjectId = null, currentTopicId = null, currentLessonId = null;
+  let currentRole = "Student";
+  let activeView = "layer1Page";
+  let lastRefreshCounter = null;
+  
+  let localizedShuffledQuizzes = []; 
+  let targetEditingQuizIndex = null; 
+  let studentAnswersTrackerMap = {}; 
+
+  loadData(true);
+  setInterval(() => { checkGlobalRefreshSignal(); }, 1000);
+
+  async function triggerGlobalMasterRefresh() {
+    try {
+      let response = await fetch('/api/force-refresh', { method: 'POST' });
+      if (response.ok) { await loadData(true); }
+    } catch (e) {}
+  }
+
+  async function checkGlobalRefreshSignal() {
+    try {
+      let res = await fetch(`/api/check-refresh?t=${Date.now()}`);
+      if (res.ok) {
+        let status = await res.json();
+        if (lastRefreshCounter !== null && status.refresh_counter > lastRefreshCounter) {
+          await loadData(true); 
+        }
+        lastRefreshCounter = status.refresh_counter;
+      }
+    } catch (e) {}
+  }
+
+  async function loadData(forceRender = false) {
+    try {
+      let response = await fetch(`/api/data?t=${Date.now()}`);
+      if (response.ok) {
+        appData = await response.json();
+        document.getElementById("programLabel").innerText = appData.title || "Learning Program";
+        if (forceRender) refreshCurrentView();
+      }
+    } catch (error) {}
+  }
+
+  async function saveData() {
+    if (currentRole === "Student") return;
+    appData.title = document.getElementById("programLabel").innerText;
+    try {
+      let response = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(appData)
+      });
+      if (response.ok) {
+        let resData = await response.json();
+        if (resData && resData.new_version) appData.data_version = resData.new_version;
+        await loadData(false); 
+      }
+    } catch (error) {}
+  }
+
+  function refreshCurrentView() {
+    if (activeView === "layer1Page") renderLayer1();
+    else if (activeView === "layer2Page") renderLayer2();
+    else if (activeView === "layer3Page") renderLayer3();
+    else if (activeView === "layer4Page") renderLayer4();
+    else if (activeView === "examPage") renderExam();
+  }
+
+  function shuffleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function renderLayer1() {
+    const container = document.getElementById("layer1Container"); container.innerHTML = "";
+    (appData.subjects || []).forEach(s => { container.appendChild(createRow(s.name, () => openLayer2(s.id), () => renameLayer1(s.id), () => deleteLayer1(s.id), 'main-btn')); });
+  }
+
+  function renderLayer2() {
+    const container = document.getElementById("layer2Container"); container.innerHTML = "";
+    const s = appData.subjects.find(x => x.id === currentSubjectId); if (!s) return;
+    document.getElementById("layer2Title").innerText = s.name;
+    (s.topics || []).forEach(t => { container.appendChild(createRow(t.name, () => openLayer3(t.id), () => renameLayer2(t.id), () => deleteLayer2(t.id), 'main-btn layer2-btn')); });
+  }
+
+  function renderLayer3() {
+    const container = document.getElementById("layer3Container"); container.innerHTML = "";
+    const s = appData.subjects.find(x => x.id === currentSubjectId);
+    const t = s.topics.find(x => x.id === currentTopicId); if (!t) return;
+    document.getElementById("layer3Title").innerText = s.name + " → " + t.name;
+    (t.lessons || []).forEach(l => { container.appendChild(createRow(l.name, () => openLayer4(l.id), () => renameLayer3(l.id), () => deleteLayer3(l.id), 'main-btn layer3-btn')); });
+  }
+
+  function renderLayer4() {
+    const container = document.getElementById("layer4Container");
+    container.innerHTML = "";
+    const s = appData.subjects.find(x => x.id === currentSubjectId);
+    const t = s.topics.find(x => x.id === currentTopicId);
+    const l = t.lessons.find(x => x.id === currentLessonId);
+    if (!l) return;
+    document.getElementById("layer4Title").innerText = t.name + " → " + l.name;
+
+    const mediaContainer = document.getElementById("dynamicVideoContainer");
+    mediaContainer.innerHTML = "";
+
+    function renderVideo(src) {
+      mediaContainer.innerHTML = `
+        <video src="${src}" 
+               controls 
+               controlsList="nodownload noplaybackrate" 
+               disablePictureInPicture
+               style="width:100%; min-height:280px; background:#000; border-radius:6px;">
+        </video>
+      `;
+    }
+
+    function renderActions() {
+      (l.actions || []).forEach((act, idx) => {
+        container.appendChild(createRow(act, () => {}, () => renameLayer4(idx), () => deleteLayer4(idx), 'main-btn action-btn-custom'));
+      });
+    }
+
+    if (l.videoData) {
+      document.getElementById("videoPlayerArea").style.display = "block";
+      const link = l.videoData;
+
+      if (link.includes("archive.org/details/")) {
+        const itemId = link.match(/details\/([^\/?]+)/)?.[1];
+        if (itemId) {
+          (async () => {
+            let videoSrc = link;
+            try {
+              const res = await fetch(`https://archive.org/metadata/${itemId}`);
+              if (res.ok) {
+                const meta = await res.json();
+                const files = meta.files || [];
+                let videoFile = files.find(f => f.format === 'h.264' || f.format === 'MPEG4' || f.name.endsWith('.mp4'));
+                if (!videoFile) videoFile = files.find(f => f.name.match(/\.(mp4|webm|mov)$/i));
+                if (videoFile) {
+                  videoSrc = `https://archive.org/download/${itemId}/${videoFile.name}`;
+                }
+              }
+            } catch (e) {}
+            renderVideo(videoSrc);
+          })();
+          renderActions();
+          return;
+        }
+      }
+
+      if (link.includes("youtube.com") || link.includes("youtu.be")) {
+        let embedUrl = link;
+        if (embedUrl.includes("watch?v=")) embedUrl = embedUrl.replace("watch?v=", "embed/");
+        else if (embedUrl.includes("youtu.be/")) embedUrl = embedUrl.replace("youtu.be/", "youtube.com/embed/");
+        embedUrl += (embedUrl.includes('?') ? '&' : '?') + 'controls=1&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&fs=0';
+        mediaContainer.innerHTML = `<iframe src="${embedUrl}" style="width:100%; min-height:280px; border:none;" allowfullscreen></iframe>`;
+      } else {
+        renderVideo(link);
+      }
+    } else {
+      document.getElementById("videoPlayerArea").style.display = "none";
+    }
+
+    if (!l.videoData || !l.videoData.includes("archive.org/details/")) {
+      renderActions();
+    }
+  }
+
+  async function submitExternalVideoLink() {
+    const input = document.getElementById("externalVideoLinkInput");
+    const linkValue = input.value.trim();
+    if (!linkValue) return;
+
+    const s = appData.subjects.find(x => x.id === currentSubjectId);
+    const t = s.topics.find(x => x.id === currentTopicId);
+    const l = t.lessons.find(x => x.id === currentLessonId);
+    
+    if (l) {
+      l.videoData = linkValue;
+      await saveData();
+      renderLayer4();
+    }
+    input.value = "";
+    document.getElementById("videoLinkGroupInputGroup").style.display = "none";
+  }
+
+  function prepareShuffledExamDataset(lesson) {
+    if (!lesson.quizzes) return [];
+    return lesson.quizzes.map((originalQuiz, originalIndex) => {
+      let standardOptionsMap = originalQuiz.options.map((optionText, optionIdx) => {
+        return { text: optionText, identityIndex: optionIdx };
+      });
+      let dynamicShuffledOptions = shuffleArray([...standardOptionsMap]);
+      return {
+        originalDatabaseIndex: originalIndex,
+        questionText: originalQuiz.question,
+        attachedImage: originalQuiz.image || "",
+        shuffledOptionsArray: dynamicShuffledOptions,
+        originalCorrectIndex: originalQuiz.correct
+      };
+    });
+  }
+
+  function renderExam() {
+    const area = document.getElementById("quizDisplayArea"); area.innerHTML = "";
+    const s = appData.subjects.find(x => x.id === currentSubjectId);
+    const t = s.topics.find(x => x.id === currentTopicId);
+    const l = t.lessons.find(x => x.id === currentLessonId); 
+    if (!l) return;
+
+    if (localizedShuffledQuizzes.length === 0 && l.quizzes && l.quizzes.length > 0) {
+      localizedShuffledQuizzes = prepareShuffledExamDataset(l);
+      shuffleArray(localizedShuffledQuizzes);
+      studentAnswersTrackerMap = {}; 
+      document.getElementById("finalScoreBannerArea").style.display = "none";
+    }
+
+    if (localizedShuffledQuizzes.length > 0) {
+      document.getElementById("endExamWorkspaceBlock").style.display = "block";
+    } else {
+      document.getElementById("endExamWorkspaceBlock").style.display = "none";
+    }
+
+    localizedShuffledQuizzes.forEach((item, displayIndex) => {
+      let qBox = document.createElement("div"); qBox.className = "quiz-box";
+      qBox.innerHTML = `<div class="quiz-question">Q${displayIndex + 1}: ${item.questionText}</div>`;
+      
+      if (item.attachedImage) {
+        let img = document.createElement("img"); img.src = item.attachedImage; img.className = "quiz-img";
+        qBox.insertBefore(img, qBox.firstChild.nextSibling);
+      }
+
+      let btnContainer = document.createElement("div");
+      item.shuffledOptionsArray.forEach((optObject) => {
+        let btn = document.createElement("button"); btn.className = "option-btn"; btn.innerText = optObject.text;
+        
+        if (studentAnswersTrackerMap[item.originalDatabaseIndex] !== undefined) {
+          if (studentAnswersTrackerMap[item.originalDatabaseIndex].selectedIdentity === optObject.identityIndex) {
+            if (optObject.identityIndex === item.originalCorrectIndex) btn.classList.add("correct-flash");
+            else btn.classList.add("wrong-flash");
+          }
+        }
+
+        btn.onclick = () => {
+          if (studentAnswersTrackerMap[item.originalDatabaseIndex] !== undefined) return;
+
+          let isCorrect = (optObject.identityIndex === item.originalCorrectIndex);
+          if (isCorrect) btn.classList.add("correct-flash");
+          else btn.classList.add("wrong-flash");
+
+          studentAnswersTrackerMap[item.originalDatabaseIndex] = {
+            selectedIdentity: optObject.identityIndex,
+            wasCorrect: isCorrect
+          };
+        };
+        btnContainer.appendChild(btn);
+      });
+      qBox.appendChild(btnContainer);
+
+      if (currentRole === "Admin") {
+        let adminRow = document.createElement("div");
+        adminRow.className = "admin-actions";
+        adminRow.style = "display:flex; gap:10px; margin-top:10px;";
+
+        let editBtn = document.createElement("button");
+        editBtn.innerText = "✏️ Edit Full Question";
+        editBtn.style = "background:#f39c12; border:none; color:white; padding:6px 12px; border-radius:4px; font-size:12px; cursor:pointer; font-weight:bold;";
+        editBtn.onclick = () => launchAdvancedQuestionEditor(item.originalDatabaseIndex);
+        
+        let delBtn = document.createElement("button");
+        delBtn.innerText = "❌ Delete";
+        delBtn.style = "background:#e74c3c; border:none; color:white; padding:6px 12px; border-radius:4px; font-size:12px; cursor:pointer; font-weight:bold;";
+        delBtn.onclick = async () => {
+          if (confirm("Are you sure you want to completely delete this question?")) {
+            l.quizzes.splice(item.originalDatabaseIndex, 1);
+            localizedShuffledQuizzes = []; 
+            await saveData(); renderExam();
+          }
+        };
+
+        adminRow.appendChild(editBtn); adminRow.appendChild(delBtn); qBox.appendChild(adminRow);
+      }
+      area.appendChild(qBox);
+    });
+  }
+
+  function calculateFinalExamScore() {
+    let totalQuestions = localizedShuffledQuizzes.length;
+    if (totalQuestions === 0) return;
+
+    let correctAnswersCount = 0;
+    for (let key in studentAnswersTrackerMap) {
+      if (studentAnswersTrackerMap[key].wasCorrect === true) {
+        correctAnswersCount++;
+      }
+    }
+
+    let banner = document.getElementById("finalScoreBannerArea");
+    banner.innerText = `🎯 Exam Finished! Score: ${correctAnswersCount} / ${totalQuestions}`;
+    banner.style.display = "block";
+    banner.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function launchAdvancedQuestionEditor(databaseIndex) {
+    const s = appData.subjects.find(x => x.id === currentSubjectId);
+    const t = s.topics.find(x => x.id === currentTopicId);
+    const l = t.lessons.find(x => x.id === currentLessonId);
+    const targetQuiz = l.quizzes[databaseIndex];
+    
+    targetEditingQuizIndex = databaseIndex;
+    document.getElementById("editModalQText").value = targetQuiz.question;
+    document.getElementById("editModalQImage").value = ""; 
+    
+    for (let i = 0; i < 4; i++) {
+      document.getElementById(`mOpt${i}`).value = targetQuiz.options[i] || "";
+      document.getElementById(`mRad${i}`).checked = (targetQuiz.correct === i);
+    }
+    document.getElementById("editQuestionModal").style.display = "flex";
+  }
+
+  function closeEditModal() { document.getElementById("editQuestionModal").style.display = "none"; targetEditingQuizIndex = null; }
+  
+  function removeModalImage() {
+    if (targetEditingQuizIndex === null) return;
+    const s = appData.subjects.find(x => x.id === currentSubjectId);
+    const t = s.topics.find(x => x.id === currentTopicId);
+    const l = t.lessons.find(x => x.id === currentLessonId);
+    l.quizzes[targetEditingQuizIndex].image = "";
+    alert("Image unlinked. Hit Save Changes to apply.");
+  }
+
+  async function saveAdvancedEdit() {
+    if (targetEditingQuizIndex === null) return;
+    const s = appData.subjects.find(x => x.id === currentSubjectId);
+    const t = s.topics.find(x => x.id === currentTopicId);
+    const l = t.lessons.find(x => x.id === currentLessonId);
+    const targetQuiz = l.quizzes[targetEditingQuizIndex];
+
+    targetQuiz.question = document.getElementById("editModalQText").value.trim();
+    targetQuiz.options = [
+      document.getElementById("mOpt0").value.trim(), document.getElementById("mOpt1").value.trim(),
+      document.getElementById("mOpt2").value.trim(), document.getElementById("mOpt3").value.trim()
+    ].filter(o => o !== "");
+
+    let radSelected = document.querySelector('input[name="modalCorrectRadio"]:checked');
+    targetQuiz.correct = radSelected ? parseInt(radSelected.value) : 0;
+
+    let imgFile = document.getElementById("editModalQImage").files[0];
+    if (imgFile) {
+      let reader = new FileReader();
+      reader.onload = async (e) => {
+        targetQuiz.image = e.target.result;
+        localizedShuffledQuizzes = []; 
+        await saveData(); closeEditModal(); renderExam();
+      };
+      reader.readAsDataURL(imgFile);
+    } else {
+      localizedShuffledQuizzes = []; 
+      await saveData(); closeEditModal(); renderExam();
+    }
+  }
+
+  function createRow(text, onClickMain, onClickRename, onClickDelete, extraClasses) {
+    const row = document.createElement("div"); row.className = "menu-item-row";
+    const b = document.createElement("button"); b.className = extraClasses; b.innerText = text; b.onclick = onClickMain;
+    const r = document.createElement("button"); r.className = "action-btn rename-btn"; r.innerText = "Rename"; r.onclick = onClickRename;
+    const d = document.createElement("button"); d.className = "action-btn delete-btn"; d.innerText = "Delete"; d.onclick = onClickDelete;
+    row.appendChild(b); row.appendChild(r); row.appendChild(d); return row;
+  }
+
+  function showInputForm(layer) { document.getElementById(layer + "InputGroup").style.display = "flex"; }
+
+  async function submitNewLayer1() {
+    const input = document.getElementById("newLayer1Name");
+    if (input.value.trim()) { appData.subjects.push({ id: Date.now().toString(), name: input.value.trim(), topics: [] }); await saveData(); renderLayer1(); }
+    input.value = ""; document.getElementById("layer1InputGroup").style.display = "none";
+  }
+
+  async function submitNewLayer2() {
+    const input = document.getElementById("newLayer2Name"); const s = appData.subjects.find(x => x.id === currentSubjectId);
+    if (input.value.trim() && s) { s.topics.push({ id: Date.now().toString(), name: input.value.trim(), lessons: [] }); await saveData(); renderLayer2(); }
+    input.value = ""; document.getElementById("layer2InputGroup").style.display = "none";
+  }
+
+  async function submitNewLayer3() {
+    const input = document.getElementById("newLayer3Name");
+    const s = appData.subjects.find(x => x.id === currentSubjectId); const t = s.topics.find(x => x.id === currentTopicId);
+    if (input.value.trim() && t) { t.lessons.push({ id: Date.now().toString(), name: input.value.trim(), actions: [], videoData: "", quizzes: [] }); await saveData(); renderLayer3(); }
+    input.value = ""; document.getElementById("layer3InputGroup").style.display = "none";
+  }
+
+  async function submitNewLayer4() {
+    const input = document.getElementById("newLayer4Name");
+    const s = appData.subjects.find(x => x.id === currentSubjectId); const t = s.topics.find(x => x.id === currentTopicId); const l = t.lessons.find(x => x.id === currentLessonId);
+    if (input.value.trim() && l) { l.actions.push(input.value.trim()); await saveData(); renderLayer4(); }
+    input.value = ""; document.getElementById("layer4InputGroup").style.display = "none";
+  }
+
+  async function submitNewQuestion() {
+    const s = appData.subjects.find(x => x.id === currentSubjectId); const t = s.topics.find(x => x.id === currentTopicId); const l = t.lessons.find(x => x.id === currentLessonId);
+    const qText = document.getElementById("quizQuestionInput").value.trim(); if (!qText || !l) return;
+
+    let opts = [
+      document.getElementById("opt1").value.trim(), document.getElementById("opt2").value.trim(),
+      document.getElementById("opt3").value.trim(), document.getElementById("opt4").value.trim()
+    ].filter(o => o !== "");
+
+    let rad = document.querySelector('input[name="correctAnswerRadio"]:checked');
+    if (!l.quizzes) l.quizzes = [];
+
+    let newQuizItem = { question: qText, options: opts, correct: rad ? parseInt(rad.value) : 0, image: "" };
+    let imgFile = document.getElementById("quizQuestionImageInput").files[0];
+    
+    if (imgFile) {
+      let reader = new FileReader();
+      reader.onload = async (e) => {
+        newQuizItem.image = e.target.result; l.quizzes.push(newQuizItem);
+        localizedShuffledQuizzes = []; 
+        await saveData(); renderExam(); resetQuestionForm();
+      };
+      reader.readAsDataURL(imgFile);
+    } else {
+      l.quizzes.push(newQuizItem); localizedShuffledQuizzes = []; 
+      await saveData(); renderExam(); resetQuestionForm();
+    }
+  }
+
+  function resetQuestionForm() {
+    document.getElementById("examFormInputGroup").style.display = "none";
+    document.getElementById("quizQuestionInput").value = ""; document.getElementById("quizQuestionImageInput").value = "";
+    document.getElementById("opt1").value = ""; document.getElementById("opt2").value = ""; document.getElementById("opt3").value = ""; document.getElementById("opt4").value = "";
+  }
+
+  function triggerBulkTxtUpload() { document.getElementById("bulkTxtFileInput").click(); }
+  function handleBulkTxtSelected(el) {
+    let file = el.files[0]; if (!file) return;
+    let reader = new FileReader();
+    reader.onload = async (e) => {
+      const s = appData.subjects.find(x => x.id === currentSubjectId); const t = s.topics.find(x => x.id === currentTopicId); const l = t.lessons.find(x => x.id === currentLessonId);
+      if (!l) return; if (!l.quizzes) l.quizzes = [];
+
+      let lines = e.target.result.split(/\r?\n/).map(line => line.trim()).filter(l => l.length > 0);
+      let currentQ = null;
+
+      lines.forEach(line => {
+        if (/^\d+\./.test(line) || /^Q\d+\./i.test(line)) {
+          if (currentQ && currentQ.options.length >= 2) l.quizzes.push(currentQ);
+          let text = line.replace(/^\d+\.\s*/, "").replace(/^Q\d+\.\s*/i, "").trim();
+          currentQ = { question: text, options: [], correct: 0, image: "" };
+        } else if (currentQ && (/^[a-d]\)/i.test(line) || /^\*\s*[a-d]\)/i.test(line))) {
+          let isCorrect = line.startsWith("*");
+          let cleanedOpt = line.replace(/^\*\s*/, "").replace(/^[a-d]\)\s*/i, "").trim();
+          currentQ.options.push(cleanedOpt);
+          if (isCorrect) currentQ.correct = currentQ.options.length - 1;
+        }
+      });
+      if (currentQ && currentQ.options.length >= 2) l.quizzes.push(currentQ);
+      localizedShuffledQuizzes = []; 
+      await saveData(); renderExam(); el.value = ""; alert("✅ Bulk Data Stream Imported!");
+    };
+    reader.readAsText(file);
+  }
+
+  function triggerVideoUpload() { document.getElementById("videoFileInput").click(); }
+  function handleVideoSelected(el) {
+    let file = el.files[0];
+    if (file) {
+      let reader = new FileReader();
+      reader.onload = async (e) => {
+        const s = appData.subjects.find(x => x.id === currentSubjectId); const t = s.topics.find(x => x.id === currentTopicId); const l = t.lessons.find(x => x.id === currentLessonId);
+        if (l) { l.videoData = e.target.result; await saveData(); renderLayer4(); }
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  async function deleteLayer1(id) { appData.subjects = appData.subjects.filter(x => x.id !== id); await saveData(); renderLayer1(); }
+  async function deleteLayer2(id) { let s = appData.subjects.find(x => x.id === currentSubjectId); s.topics = s.topics.filter(x => x.id !== id); await saveData(); renderLayer2(); }
+  async function deleteLayer3(id) { let s = appData.subjects.find(x => x.id === currentSubjectId); let t = s.topics.find(x => x.id === currentTopicId); t.lessons = t.lessons.filter(x => x.id !== id); await saveData(); renderLayer3(); }
+  async function deleteLayer4(idx) { let s = appData.subjects.find(x => x.id === currentSubjectId); let t = s.topics.find(x => x.id === currentTopicId); l = t.lessons.find(x => x.id === currentLessonId); l.actions.splice(idx, 1); await saveData(); renderLayer4(); }
+
+  async function renameLayer1(id) { let s = appData.subjects.find(x => x.id === id); let n = prompt("Rename:", s.name); if(n) { s.name=n; await saveData(); renderLayer1(); } }
+  async function renameLayer2(id) { let s = appData.subjects.find(x => x.id === currentSubjectId); let t = s.topics.find(x => x.id === id); let n = prompt("Rename:", t.name); if(n) { t.name=n; await saveData(); renderLayer2(); } }
+  async function renameLayer3(id) { let s = appData.subjects.find(x => x.id === currentSubjectId); let t = s.topics.find(x => x.id === currentTopicId); let l = t.lessons.find(x => x.id === id); let n = prompt("Rename:", l.name); if(n) { l.name=n; await saveData(); renderLayer3(); } }
+  async function renameLayer4(idx) { let s = appData.subjects.find(x => x.id === currentSubjectId); let t = s.topics.find(x => x.id === currentTopicId); let l = t.lessons.find(x => x.id === currentLessonId); let n = prompt("Rename:", l.actions[idx]); if(n) { l.actions[idx]=n; await saveData(); renderLayer4(); } }
+
+  function openLayer2(id) { currentSubjectId = id; changeView("layer1Page", "layer2Page"); renderLayer2(); }
+  function goToLayer1() { currentSubjectId = null; changeView("layer2Page", "layer1Page"); renderLayer1(); }
+  function openLayer3(id) { currentTopicId = id; changeView("layer2Page", "layer3Page"); renderLayer3(); }
+  function goToLayer2() { currentTopicId = null; changeView("layer3Page", "layer2Page"); renderLayer2(); }
+  function openLayer4(id) { currentLessonId = id; changeView("layer3Page", "layer4Page"); renderLayer4(); }
+  function goToLayer3() { currentLessonId = null; changeView("layer4Page", "layer3Page"); renderLayer3(); }
+  
+  function openExamPage() { localizedShuffledQuizzes = []; changeView("layer4Page", "examPage"); renderExam(); }
+  function goToLayer4() { changeView("examPage", "layer4Page"); renderLayer4(); }
+
+  function changeView(hide, show) { document.getElementById(hide).style.display = "none"; document.getElementById(show).style.display = "block"; activeView = show; }
+
+  function toggleRole() {
+    if (currentRole === "Admin") {
+      currentRole = "Student"; document.body.className = "student-mode";
+      document.getElementById("roleSelector").innerText = "Current Role: 🎓 Student";
+      document.getElementById("roleSelector").classList.remove("admin-active");
+      document.getElementById("programLabel").contentEditable = "false";
+    } else {
+      let pass = prompt("Enter Admin Password:");
+      if (pass === "1234") {
+        currentRole = "Admin"; document.body.className = "admin-mode";
+        document.getElementById("roleSelector").innerText = "Current Role: 👑 Admin Active";
+        document.getElementById("roleSelector").classList.add("admin-active");
+        document.getElementById("programLabel").contentEditable = "true";
+      } else if (pass !== null) {
+        alert("❌ Invalid Admin Password!");
+      }
+    }
+    refreshCurrentView();
+  }
+</script>
+</body>
+</html>
