@@ -554,7 +554,7 @@
   async function submitNewLayer3() {
     const input = document.getElementById("newLayer3Name");
     const s = appData.subjects.find(x => x.id === currentSubjectId); const t = s.topics.find(x => x.id === currentTopicId);
-    if (input.value.trim() && t) { t.lessons.push({ id: Date.now().toString(), name: input.value.trim(), actions: [], videoData: "", quizzes: [] }); await saveData(); renderLayer3(); }
+    if (input.value.trim() && t) { t.lessons.push({ id: Date.now().toString(), name: input.value.trim(), actions: [], videoData: "", quizzes: [] }); await saveData(); render3(); }
     input.value = ""; document.getElementById("layer3InputGroup").style.display = "none";
   }
 
