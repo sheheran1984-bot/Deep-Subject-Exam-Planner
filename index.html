@@ -178,14 +178,16 @@
 
   async function triggerGlobalMasterRefresh() {
     try {
-      let response = await fetch('/api/force-refresh', { method: 'POST' });
+      // ✅ CHANGED: Added full PythonAnywhere URL
+      let response = await fetch('https://sheheran1984.pythonanywhere.com/api/force-refresh', { method: 'POST' });
       if (response.ok) { await loadData(true); }
     } catch (e) {}
   }
 
   async function checkGlobalRefreshSignal() {
     try {
-      let res = await fetch(`/api/check-refresh?t=${Date.now()}`);
+      // ✅ CHANGED: Added full PythonAnywhere URL
+      let res = await fetch(`https://sheheran1984.pythonanywhere.com/api/check-refresh?t=${Date.now()}`);
       if (res.ok) {
         let status = await res.json();
         if (lastRefreshCounter !== null && status.refresh_counter > lastRefreshCounter) {
@@ -198,7 +200,8 @@
 
   async function loadData(forceRender = false) {
     try {
-      let response = await fetch(`/api/data?t=${Date.now()}`);
+      // ✅ CHANGED: Added full PythonAnywhere URL
+      let response = await fetch(`https://sheheran1984.pythonanywhere.com/api/data?t=${Date.now()}`);
       if (response.ok) {
         appData = await response.json();
         document.getElementById("programLabel").innerText = appData.title || "Learning Program";
@@ -211,7 +214,8 @@
     if (currentRole === "Student") return;
     appData.title = document.getElementById("programLabel").innerText;
     try {
-      let response = await fetch('/api/data', {
+      // ✅ CHANGED: Added full PythonAnywhere URL
+      let response = await fetch('https://sheheran1984.pythonanywhere.com/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(appData)
@@ -551,18 +555,12 @@
     input.value = ""; document.getElementById("layer2InputGroup").style.display = "none";
   }
 
-  // ✅ FIXED: render3() → renderLayer3()
   async function submitNewLayer3() {
     const input = document.getElementById("newLayer3Name");
-    const s = appData.subjects.find(x => x.id === currentSubjectId); 
+    const s = appData.subjects.find(x => x.id === currentSubjectId);
     const t = s.topics.find(x => x.id === currentTopicId);
-    if (input.value.trim() && t) { 
-      t.lessons.push({ id: Date.now().toString(), name: input.value.trim(), actions: [], videoData: "", quizzes: [] }); 
-      await saveData(); 
-      renderLayer3();  // <-- FIXED
-    }
-    input.value = ""; 
-    document.getElementById("layer3InputGroup").style.display = "none";
+    if (input.value.trim() && t) { t.lessons.push({ id: Date.now().toString(), name: input.value.trim(), actions: [], videoData: "", quizzes: [] }); await saveData(); renderLayer3(); }
+    input.value = ""; document.getElementById("layer3InputGroup").style.display = "none";
   }
 
   async function submitNewLayer4() {
