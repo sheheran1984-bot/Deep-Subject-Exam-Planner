@@ -7,7 +7,7 @@ from flask import Flask, jsonify, request, send_from_directory
 
 app = Flask(__name__)
 
-# PythonAnywhere environment එකට ගැලපෙන absolute paths
+# PythonAnywhere absolute paths
 BASE_DIR = "/home/Sheheran1984/Deep-Subject-Exam-Planner"
 DATA_FILE = os.path.join(BASE_DIR, "quiz_data.json")
 TEMP_FILE = os.path.join(BASE_DIR, "quiz_data.tmp")
@@ -16,6 +16,7 @@ UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 file_lock = threading.Lock()
 refresh_counter = 0
 
+# Create uploads folder if missing
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 
@@ -47,12 +48,12 @@ def save_media_file(base64_data, prefix="file"):
         print(f"❌ Media save error: {e}")
         return base64_data
 
-# HTML index file එක serve කරන route එක
+# Serve the main HTML page
 @app.route('/')
 def index():
     return send_from_directory(BASE_DIR, 'index.html')
 
-# Uploaded images සහ videos සෘජුව serve කිරීමට
+# Serve uploaded images/videos
 @app.route('/uploads/<path:filename>')
 def serve_uploads(filename):
     return send_from_directory(UPLOAD_DIR, filename)
@@ -92,6 +93,7 @@ def post_data():
     try:
         incoming_json = request.json or {}
         
+        # Save base64 media to files
         for subject in incoming_json.get("subjects", []):
             for topic in subject.get("topics", []):
                 for lesson in topic.get("lessons", []):
@@ -101,6 +103,7 @@ def post_data():
                         if quiz.get("image") and quiz["image"].startswith("data:"):
                             quiz["image"] = save_media_file(quiz["image"], "img")
 
+        # Write safely to JSON file
         with file_lock:
             server_version = 0
             if os.path.exists(DATA_FILE) and os.path.getsize(DATA_FILE) > 0:
@@ -119,3 +122,6 @@ def post_data():
         return jsonify({"status": "success", "new_version": incoming_json["data_version"]})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+# This is what PythonAnywhere looks for
+application = app
