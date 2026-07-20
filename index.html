@@ -551,11 +551,18 @@
     input.value = ""; document.getElementById("layer2InputGroup").style.display = "none";
   }
 
+  // ✅ FIXED: render3() → renderLayer3()
   async function submitNewLayer3() {
     const input = document.getElementById("newLayer3Name");
-    const s = appData.subjects.find(x => x.id === currentSubjectId); const t = s.topics.find(x => x.id === currentTopicId);
-    if (input.value.trim() && t) { t.lessons.push({ id: Date.now().toString(), name: input.value.trim(), actions: [], videoData: "", quizzes: [] }); await saveData(); render3(); }
-    input.value = ""; document.getElementById("layer3InputGroup").style.display = "none";
+    const s = appData.subjects.find(x => x.id === currentSubjectId); 
+    const t = s.topics.find(x => x.id === currentTopicId);
+    if (input.value.trim() && t) { 
+      t.lessons.push({ id: Date.now().toString(), name: input.value.trim(), actions: [], videoData: "", quizzes: [] }); 
+      await saveData(); 
+      renderLayer3();  // <-- FIXED
+    }
+    input.value = ""; 
+    document.getElementById("layer3InputGroup").style.display = "none";
   }
 
   async function submitNewLayer4() {
