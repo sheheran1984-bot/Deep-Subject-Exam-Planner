@@ -1,15 +1,17 @@
-from flask import Flask, request, jsonify, send_from_directory
-import json
 import os
+import json
 import threading
 import base64
 import time
+from flask import Flask, jsonify, request, send_from_directory
 
 app = Flask(__name__)
 
-DATA_FILE = "quiz_data.json"
-TEMP_FILE = "quiz_data.tmp"
-UPLOAD_DIR = "uploads"
+# PythonAnywhere environment එකට ගැලපෙන absolute paths
+BASE_DIR = "/home/Sheheran1984/Deep-Subject-Exam-Planner"
+DATA_FILE = os.path.join(BASE_DIR, "quiz_data.json")
+TEMP_FILE = os.path.join(BASE_DIR, "quiz_data.tmp")
+UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 
 file_lock = threading.Lock()
 refresh_counter = 0
@@ -45,16 +47,17 @@ def save_media_file(base64_data, prefix="file"):
         print(f"❌ Media save error: {e}")
         return base64_data
 
-# CORS Headers හැම Response එකකටම එකතු කරන්න (GitHub Pages එකෙන් කතා කරද්දී ඕන වෙනවා)
-@app.after_request
-def add_cors_headers(response):
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
-    return response
+# HTML index file එක serve කරන route එක
+@app.route('/')
+def index():
+    return send_from_directory(BASE_DIR, 'index.html')
+
+# Uploaded images සහ videos සෘජුව serve කිරීමට
+@app.route('/uploads/<path:filename>')
+def serve_uploads(filename):
+    return send_from_directory(UPLOAD_DIR, filename)
+
+# --- API ENDPOINTS ---
 
 @app.route('/api/check-refresh', methods=['GET'])
 def check_refresh():
@@ -63,17 +66,19 @@ def check_refresh():
 
 @app.route('/api/data', methods=['GET'])
 def get_data():
-    content = ""
+    content_data = None
     with file_lock:
         if os.path.exists(DATA_FILE) and os.path.getsize(DATA_FILE) > 0:
             try:
                 with open(DATA_FILE, "r", encoding="utf-8") as f:
-                    content = f.read().strip()
+                    content_data = json.load(f)
             except Exception as e:
                 print(f"❌ Error reading data file: {e}")
-    if not content:
-        return jsonify({"title": "Learning Program", "subjects": [], "data_version": 1})
-    return app.response_class(response=content, status=200, mimetype='application/json')
+                
+    if content_data is None:
+        content_data = {"title": "Learning Program", "subjects": [], "data_version": 1}
+        
+    return jsonify(content_data)
 
 @app.route('/api/force-refresh', methods=['POST'])
 def force_refresh():
@@ -85,7 +90,7 @@ def force_refresh():
 def post_data():
     global refresh_counter
     try:
-        incoming_json = request.get_json(force=True)
+        incoming_json = request.json or {}
         
         for subject in incoming_json.get("subjects", []):
             for topic in subject.get("topics", []):
@@ -104,6 +109,7 @@ def post_data():
                         server_version = json.load(f).get("data_version", 0)
                 except Exception:
                     server_version = 0
+                    
             incoming_json["data_version"] = server_version + 1
             with open(TEMP_FILE, "w", encoding="utf-8") as f:
                 json.dump(incoming_json, f, indent=4, ensure_ascii=False)
@@ -113,12 +119,3 @@ def post_data():
         return jsonify({"status": "success", "new_version": incoming_json["data_version"]})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
-
-# Upload කරපු පින්තූර සහ වීඩියෝ පිටතට පෙන්වීමට (Serve Media Files)
-@app.route('/uploads/<filename>')
-def serve_uploads(filename):
-    return send_from_directory(UPLOAD_DIR, filename)
-
-if __name__ == "__main__":
-    PORT = int(os.environ.get("PORT", 8000))
-    app.run(host="0.0.0.0", port=PORT)
