@@ -120,5 +120,5 @@ def serve_uploads(filename):
     return send_from_directory(UPLOAD_DIR, filename)
 
 if __name__ == "__main__":
-    PORT = int(os.environ.get("PORT", 8000))
+    PORT = int(os.environ.get("PORT", 8050))
     app.run(host="0.0.0.0", port=PORT)
